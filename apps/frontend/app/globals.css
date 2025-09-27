@@ -120,3 +120,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+.syne-font {
+  font-family: "Syne", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+.inter-tight-font {
+  font-family: "Inter Tight", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+

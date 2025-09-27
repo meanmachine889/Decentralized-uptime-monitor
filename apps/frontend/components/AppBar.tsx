@@ -1,33 +1,47 @@
 "use client";
 
 import {
-    SignInButton,
-    SignUpButton,
-    SignedIn,
-    SignedOut,
-    UserButton,
-} from '@clerk/nextjs';
-import { ModeToggle } from './theme-toggle';
-
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
+import { ModeToggle } from "./theme-toggle";
+import { Button } from "./ui/button";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function AppBar() {
-    return (
-        <div className='flex justify-between items-center w-full p-4'>
-            <ModeToggle />
-            <div>Uptime Monitor</div>
-            <div>
-                <SignedOut>
-                    <SignInButton />
-                    <SignUpButton>
-                        <button className="bg-[#6c47ff] text-ceramic-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-                            Sign Up
-                        </button>
-                    </SignUpButton>
-                </SignedOut>
-                <SignedIn>
-                    <UserButton />
-                </SignedIn>
-            </div>
-        </div>
-    )
+  const pathname = usePathname();
+
+  return (
+    <div className="flex justify-between items-center w-full p-7 z-10 px-9">
+      <ModeToggle />
+      <div style={{ fontFamily: "var(--font-geist-mono)" }}>
+        <SignedOut>
+          <div className="flex gap-3">
+            <SignInButton>
+              <Button variant={"outline"} className="font-medium text-md">
+                Sign in
+              </Button>
+            </SignInButton>
+            <SignUpButton>
+              <Button className="font-medium text-md">Sign Up</Button>
+            </SignUpButton>
+          </div>
+        </SignedOut>
+        <SignedIn>
+          <div className="flex gap-3 items-center">
+            <Button className="font-medium text-md">
+              <Link href={pathname === "/dashboard" ? "/" : "/dashboard"}>
+                {pathname === "/dashboard" ? "Home" : "Dashboard"}
+              </Link>
+            </Button>
+            <UserButton />
+          </div>
+        </SignedIn>
+      </div>
+    </div>
+  );
 }

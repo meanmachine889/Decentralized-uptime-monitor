@@ -24,6 +24,7 @@ model Validator {
     id String @id @default(uuid())
     publicKey String
     location String
+    pendingPayouts Int @default(0)
     ip String
     ticks WebsiteTick[]
 }

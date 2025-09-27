@@ -53,7 +53,7 @@ app.get("/api/v1/websites", async (req, res) => {
     res.json({ data });
 })
 
-app.delete("api/get/v1/websites", async (req, res) => {
+app.delete("/api/v1/websites", async (req, res) => {
     const websiteId = req.body.websiteId;
     const userId = req.userId;
 

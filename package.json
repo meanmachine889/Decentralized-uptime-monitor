@@ -22,6 +22,9 @@
     "packages/*"
   ],
   "dependencies": {
-    "react-hot-toast": "^2.6.0"
+    "@solana/web3.js": "^1.98.4",
+    "react-hot-toast": "^2.6.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
   }
 }
