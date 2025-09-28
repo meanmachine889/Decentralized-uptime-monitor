@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, ChevronRight, Plus, Clock, Delete, DeleteIcon, Trash, TicketSlash } from "lucide-react"
+import { ChevronDown, ChevronRight, Plus, Clock, Trash } from "lucide-react"
 import { type Ticks, UseWebsites } from "@/hook/useWebsites"
 import AddWebsiteModal from "@/components/AddWebsiteModal"
 import { Button } from "@/components/ui/button"
@@ -15,10 +15,46 @@ import { useRouter } from "next/navigation"
 
 interface AggregatedTick {
   timestamp: string
-  status: "Good" | "Bad"
+  status: "Good" | "Bad" | "No Data" 
   avgLatency: number
   tickCount: number
 }
+
+
+const generateConsistentTicks = (aggregatedTicks: AggregatedTick[]): AggregatedTick[] => {
+  const displayableTicks: AggregatedTick[] = []
+  const windowSize = 3 * 60 * 1000 
+  const now = Date.now()
+
+  
+  const currentWindowStart = Math.floor(now / windowSize) * windowSize
+
+  for (let i = 0; i < 10; i++) {
+    
+    const windowStartTimestamp = currentWindowStart - i * windowSize
+
+    
+    const existingTick = aggregatedTicks.find(
+      (tick) => new Date(tick.timestamp).getTime() === windowStartTimestamp
+    )
+
+    if (existingTick) {
+      
+      displayableTicks.push(existingTick)
+    } else {
+      
+      displayableTicks.push({
+        timestamp: new Date(windowStartTimestamp).toISOString(),
+        status: "No Data",
+        avgLatency: 0,
+        tickCount: 0,
+      })
+    }
+  }
+
+  return displayableTicks.reverse()
+}
+
 
 function App() {
   const { websites, RefreshWebsite } = UseWebsites()
@@ -39,7 +75,6 @@ function App() {
     setExpandedId(expandedId === id ? null : id)
   }
 
-  // Aggregate ticks into 3-minute windows
   const aggregateTicks = (ticks: Ticks[]): AggregatedTick[] => {
     const windows: { [key: string]: any[] } = {}
     const windowSize = 3 * 60 * 1000
@@ -54,13 +89,7 @@ function App() {
       windows[windowKey].push(tick)
     })
 
-    // Get last 10 windows (30 minutes)
-    const sortedWindows = Object.keys(windows)
-      .sort((a, b) => Number.parseInt(b) - Number.parseInt(a))
-      .slice(0, 10)
-      .reverse()
-
-    return sortedWindows.map((windowKey) => {
+    return Object.keys(windows).map((windowKey) => {
       const windowTicks = windows[windowKey]
       const upTicks = windowTicks.filter((t) => t.status === "Good")
       const avgLatency = windowTicks.reduce((sum, t) => sum + t.latency, 0) / windowTicks.length
@@ -124,15 +153,12 @@ function App() {
     }
   };
 
-
-
   const overallStatus =
     websites.length > 0 && websites.every((site) => getLatestStatus(site.ticks) === "Good") ? "Good" : "Bad"
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: 'var(--font-geist-mono)' }} >
       <div className="max-w-4xl mx-auto px-6 py-12">
-        {/* Header */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -174,56 +200,55 @@ function App() {
                 return now - tickTime <= 30 * 60 * 1000;
               })
               const aggregatedTicks = aggregateTicks(filteredTicks)
+              const displayTicks = generateConsistentTicks(aggregatedTicks)
               const uptime = calculateUptime(filteredTicks)
               const status = getLatestStatus(filteredTicks)
               const avgLatency = getAverageLatency(filteredTicks)
 
               return (
-                <Card key={website.id} style={{ fontFamily: 'var(--font-geist-mono)' }} className="rounded-lg  bg-background border-2 shadow-none">
-                  <button onClick={() => toggleExpanded(website.id)} className="w-full text-left">
-                    <CardContent className="px-6 flex items-center justify-between transition-colors">
-                      <div className="flex items-center gap-4">
-                        <span
-                          aria-hidden
-                          className={`inline-block size-2 rounded-full ${status === "Good" ? "bg-green-500" : status === "Bad" ? "bg-red-500" : "bg-foreground/70"}`}
-                        />
-                        <div>
-                          <h3 className="font-normal">{website.url}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">Status over the last 30 minutes</p>
-                        </div>
+                <Card key={website.id} style={{ fontFamily: 'var(--font-geist-mono)' }} className="rounded-lg bg-background border-2 shadow-none">
+                  <CardContent className="px-6 flex items-center justify-between transition-colors">
+                    <div className="flex items-center gap-4">
+                      <span
+                        aria-hidden
+                        className={`inline-block size-2 rounded-full ${status === "Good" ? "bg-green-500" : status === "Bad" ? "bg-red-500" : "bg-foreground/70"}`}
+                      />
+                      <div>
+                        <h3 className="font-normal">{website.url}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">Status over the last 30 minutes</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                      <Button disabled={deleting} onClick={(e) => { e.stopPropagation(); handleDeleteWebsite(website.id) }} className="w-fit bg-red-500 hover:bg-red-600"><Trash /></Button>
+                      <div className="text-right">
+                        <p className="text-sm">{uptime}% uptime</p>
+                        <p className="text-xs text-muted-foreground">
+                          {status === "Good" ? `${avgLatency}ms avg` : "Offline"}
+                        </p>
                       </div>
 
-                      <div className="flex items-center gap-6">
-                        <Button disabled={deleting} onClick={() => handleDeleteWebsite(website.id)} className="w-fit bg-red-500"><Trash /></Button>
-                        <div className="text-right">
-                          <p className="text-sm">{uptime}% uptime</p>
-                          <p className="text-xs text-muted-foreground">
-                            {status === "Good" ? `${avgLatency}ms avg` : "Offline"}
-                          </p>
-                        </div>
-
-                        <div className="flex gap-1" aria-label="Uptime indicators">
-                          {aggregatedTicks.filter(tick => {
-                            const now = Date.now();
-                            const tickTime = new Date(tick.timestamp).getTime();
-                            return now - tickTime <= 30 * 60 * 1000;
-                          }).map((tick, index) => (
-                            <div
-                              key={index}
-                              className={`w-2 h-5 rounded-xs ${tick.status === "Good" ? "bg-green-500" : "bg-red-500"}`}
-                              title={`${formatTime(tick.timestamp)} - ${tick.status} (${tick.tickCount} checks, ${tick.avgLatency}ms avg)`}
-                            />
-                          ))}
-                        </div>
-
-                        {expandedId === website.id ? (
-                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        )}
+                      <div className="flex gap-1" aria-label="Uptime indicators">
+                        {displayTicks.map((tick, index) => (
+                          <div
+                            key={index}
+                            className={`w-2 h-5 rounded-xs ${tick.status === "Good" ? "bg-green-500" : tick.status === "Bad" ? "bg-red-500" : "bg-gray-400"}`}
+                            title={
+                              tick.status !== "No Data"
+                                ? `${formatTime(tick.timestamp)} - ${tick.status} (${tick.tickCount} checks, ${tick.avgLatency}ms avg)`
+                                : `${formatTime(tick.timestamp)} - No Data`
+                            }
+                          />
+                        ))}
                       </div>
-                    </CardContent>
-                  </button>
+
+                      {expandedId === website.id ? (
+                        <button onClick={() => toggleExpanded(website.id)} className=""><ChevronDown className="w-4 h-4 text-muted-foreground" /></button>
+                      ) : (
+                        <button onClick={() => toggleExpanded(website.id)} className=""><ChevronRight className="w-4 h-4 text-muted-foreground" /></button>
+                      )}
+                    </div>
+                  </CardContent>
 
                   {
                     expandedId === website.id && (
@@ -237,15 +262,15 @@ function App() {
                             </h4>
 
                             <div className="grid grid-cols-10 gap-2 mb-7">
-                              {aggregatedTicks.filter(tick => {
-                                const now = Date.now();
-                                const tickTime = new Date(tick.timestamp).getTime();
-                                return now - tickTime <= 30 * 60 * 1000;
-                              }).map((tick, index) => (
+                              {displayTicks.map((tick, index) => (
                                 <div key={index} className="text-center">
                                   <div
-                                    className={`w-full h-4 rounded-xs ${tick.status === "Good" ? "bg-green-500" : "bg-red-500"} mb-1`}
-                                    title={`${formatTime(tick.timestamp)} - ${tick.status} (${tick.tickCount} checks, ${tick.avgLatency}ms avg)`}
+                                    className={`w-full h-4 rounded-xs ${tick.status === "Good" ? "bg-green-500" : tick.status === "Bad" ? "bg-red-500" : "bg-gray-400"} mb-1`}
+                                    title={
+                                      tick.status !== "No Data"
+                                        ? `${formatTime(tick.timestamp)} - ${tick.status} (${tick.tickCount} checks, ${tick.avgLatency}ms avg)`
+                                        : `${formatTime(tick.timestamp)} - No Data`
+                                    }
                                   />
                                   <p className="text-xs text-muted-foreground">{formatTime(tick.timestamp)}</p>
                                 </div>
@@ -277,7 +302,6 @@ function App() {
           </div>
         )}
 
-        {/* Footer */}
         <div className="mt-12">
           <Separator className="mb-4" />
           <p className="text-muted-foreground text-sm text-center">
